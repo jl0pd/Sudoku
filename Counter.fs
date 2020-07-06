@@ -1,52 +1,17 @@
 ﻿namespace Sudoku
 
-open System.Text
 
-module Counter =
-
-    open Avalonia.Controls
-    open Avalonia.FuncUI.DSL
-    open Avalonia.Layout
-
-    type State = { count: int }
-    let init = { count = 0 }
-
-    type Msg =
-        | Increment
-        | Decrement
-        | Reset
-
-    let update (msg: Msg) (state: State): State =
-        match msg with
-        | Increment -> { state with count = state.count + 1 }
-        | Decrement -> { state with count = state.count - 1 }
-        | Reset -> init
-
-    let view (state: State) (dispatch) =
-        DockPanel.create
-            [ DockPanel.children
-                [ Button.create
-                    [ Button.dock Dock.Bottom
-                      Button.onClick (fun _ -> dispatch Reset)
-                      Button.content "reset" ]
-                  Button.create
-                      [ Button.dock Dock.Bottom
-                        Button.onClick (fun _ -> dispatch Decrement)
-                        Button.content "-" ]
-                  Button.create
-                      [ Button.dock Dock.Bottom
-                        Button.onClick (fun _ -> dispatch Increment)
-                        Button.content "+" ]
-                  TextBlock.create
-                      [ TextBlock.dock Dock.Top
-                        TextBlock.fontSize 48.0
-                        TextBlock.verticalAlignment VerticalAlignment.Center
-                        TextBlock.horizontalAlignment HorizontalAlignment.Center
-                        TextBlock.text (string state.count) ] ] ]
-
+[<AutoOpen>]
+module Functools =
+    let flip f x y = f y x
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Array2D =
+    let flat (arr: 'a [,]): 'a [] =
+        [| for x = 0 to (Array2D.length1 arr) - 1 do
+            for y = 0 to (Array2D.length2 arr) - 1 do
+                yield arr.[x, y] |]
+
     let fromArrayOfArrays (ar: 'a [] []): 'a [,] =
         let h, w = ar.Length, ar.[0].Length
 
@@ -67,6 +32,7 @@ module Array2D =
         |> fromArrayOfArrays
 
 module Sudoku =
+    open System.Text
 
     type Cell =
         { X: int
@@ -88,7 +54,6 @@ module Sudoku =
                 builder.AppendLine() |> ignore
             builder.ToString()
 
-
     let loadField (hiddenMap: bool [,]) (digitsMap: int [,]): Field =
         let cells =
             Array2D.zip hiddenMap digitsMap
@@ -100,7 +65,110 @@ module Sudoku =
 
         { Cells = cells }
 
+    let rank { Cells = cells } =
+        cells.GetLength(0) |> float |> sqrt |> int
+
+    let inline private square x = x * x
+
+    let size = square << rank
+
+    let isSolved { Cells = cells } =
+        let isAllOpen =
+            cells
+            |> Array2D.flat
+            |> Array.forall (fun c -> not c.IsHidden)
+
+        isAllOpen
+
 module SudokuGame =
     open Sudoku
 
-    type State = { IsSolved: bool; Field: Field }
+    type State =
+        { IsSolved: bool
+          OriginalField: Field
+          PlayerField: Field
+          SelectedCell: int * int }
+
+    let defaultDigits = Array2D.init 9 9 (fun y x -> y * 10 + x)
+    let defaultHidden = Array2D.zeroCreate 9 9
+
+    let defaultField =
+        Sudoku.loadField defaultHidden defaultDigits
+
+    let init =
+        { IsSolved = false
+          OriginalField = defaultField
+          PlayerField = defaultField
+          SelectedCell = 0, 0 }
+
+    type Message =
+        | NewGame
+        | CellSelected of int * int
+        | Digit of int
+
+    let update (msg: Message) (state: State): State =
+        match msg with
+        | NewGame -> init
+        | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
+        | Digit d ->
+            let newCells = Array2D.copy state.PlayerField.Cells
+            let x, y = state.SelectedCell
+            newCells.[y, x] <- { newCells.[y, x] with Digit = d }
+            let newField = { Cells = newCells }
+            { state with
+                  PlayerField = newField
+                  IsSolved = Sudoku.isSolved newField }
+
+module View =
+    open Avalonia.FuncUI.DSL
+    open Avalonia.Controls
+    open Avalonia.Layout
+    open Avalonia.Controls.Primitives
+    open Avalonia.FuncUI.Helpers
+    open Avalonia.Media
+    open Avalonia
+
+    open SudokuGame
+
+    let private fieldView (state: State) (dispatch: Message -> unit) =
+        UniformGrid.create
+            [ UniformGrid.columns (Sudoku.size state.OriginalField)
+              UniformGrid.children
+                  (state.PlayerField.Cells
+                   |> Array2D.flat
+                   |> Array.map (fun c ->
+                       Button.create
+                           [ Button.borderThickness 1.
+                             Button.borderBrush Brushes.Black
+                             Button.background Brushes.LightGray
+                             Button.content c.Digit
+                             Button.foreground Brushes.Black ]
+                       |> generalize)
+                   |> Array.toList) ]
+
+    let private intToString =
+        function
+        | n when n >= 0 && n <= 9 -> string n
+        | n -> sprintf "??%d" n
+
+    let private digitsPanelView (state: State) (dispatch: Message -> unit) =
+        UniformGrid.create
+            [ UniformGrid.rows 1
+              UniformGrid.margin (Thickness.Parse "0,10")
+              UniformGrid.children
+                  (Sudoku.size state.OriginalField
+                   |> flip Seq.init (fun i ->
+                            Button.create [
+                                  Button.content (intToString i)
+                            ]
+                            |> generalize)
+                   |> List.ofSeq) ]
+
+    let view (state: State) (dispatch: Message -> unit) =
+        StackPanel.create
+            [ StackPanel.horizontalAlignment HorizontalAlignment.Center
+              StackPanel.verticalAlignment VerticalAlignment.Center
+
+              StackPanel.children
+                  [ fieldView state dispatch
+                    digitsPanelView state dispatch ] ]
