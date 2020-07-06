@@ -114,12 +114,13 @@ module SudokuGame =
             let x, y = state.SelectedCell
             let oldCell = newCells.[x, y]
 
-            newCells.[x, y] <- if d <> oldCell.Digit then
+            newCells.[x, y] <- if d = oldCell.Digit then
+                                   { oldCell with
+                                         IsHidden = not oldCell.IsHidden }
+                               else
                                    { oldCell with
                                          Digit = d
                                          IsHidden = false }
-                               else
-                                   { oldCell with IsHidden = not oldCell.IsHidden }
 
             let newField = { Cells = newCells }
             { state with
