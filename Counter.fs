@@ -111,7 +111,7 @@ module SudokuGame =
         | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
         | Digit d ->
             let newCells = Array2D.copy state.PlayerField.Cells
-            let x, y = state.SelectedCell
+            let y, x = state.SelectedCell
             newCells.[y, x] <- { newCells.[y, x] with Digit = d }
             let newField = { Cells = newCells }
             { state with
@@ -145,7 +145,7 @@ module View =
                                  (if (x, y) = state.SelectedCell then Brushes.LightCyan else Brushes.LightGray)
                              Button.content c.Digit
                              Button.foreground Brushes.Black
-                             Button.onClick (fun e -> dispatch <| CellSelected(x, y)) ]
+                             Button.onClick (fun _ -> dispatch <| CellSelected(x, y)) ]
                        |> generalize)
                    |> Array.toList) ]
 
@@ -161,7 +161,10 @@ module View =
               UniformGrid.children
                   (Sudoku.size state.OriginalField
                    |> flip Seq.init (fun i ->
-                          Button.create [ Button.content (intToString i) ]
+                          Button.create [
+                              Button.content (intToString i)
+                              Button.onClick (fun _ ->
+                                    dispatch <| Digit i) ]
                           |> generalize)
                    |> List.ofSeq) ]
 
