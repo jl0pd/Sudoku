@@ -1,6 +1,5 @@
 ﻿namespace Sudoku
 
-
 [<AutoOpen>]
 module Functools =
     let flip f x y = f y x
@@ -120,14 +119,15 @@ module SudokuGame =
                   IsSolved = Sudoku.isSolved newField }
 
 module View =
-    open Avalonia.FuncUI.DSL
-    open Avalonia.Controls
-    open Avalonia.Layout
-    open Avalonia.Controls.Primitives
-    open Avalonia.FuncUI.Helpers
-    open Avalonia.Media
     open Avalonia
+    open Avalonia.Media
+    open Avalonia.Layout
+    open Avalonia.Controls
+    open Avalonia.Controls.Primitives
+    open Avalonia.FuncUI.DSL
+    open Avalonia.FuncUI.Helpers
 
+    open Sudoku
     open SudokuGame
 
     let private fieldView (state: State) (dispatch: Message -> unit) =
@@ -137,12 +137,15 @@ module View =
                   (state.PlayerField.Cells
                    |> Array2D.flat
                    |> Array.map (fun c ->
+                       let { X = x; Y = y } = c
                        Button.create
                            [ Button.borderThickness 1.
                              Button.borderBrush Brushes.Black
-                             Button.background Brushes.LightGray
+                             Button.background
+                                 (if (x, y) = state.SelectedCell then Brushes.LightCyan else Brushes.LightGray)
                              Button.content c.Digit
-                             Button.foreground Brushes.Black ]
+                             Button.foreground Brushes.Black
+                             Button.onClick (fun e -> dispatch <| CellSelected(x, y)) ]
                        |> generalize)
                    |> Array.toList) ]
 
@@ -158,10 +161,8 @@ module View =
               UniformGrid.children
                   (Sudoku.size state.OriginalField
                    |> flip Seq.init (fun i ->
-                            Button.create [
-                                  Button.content (intToString i)
-                            ]
-                            |> generalize)
+                          Button.create [ Button.content (intToString i) ]
+                          |> generalize)
                    |> List.ofSeq) ]
 
     let view (state: State) (dispatch: Message -> unit) =
