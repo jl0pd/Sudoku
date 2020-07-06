@@ -88,7 +88,7 @@ module SudokuGame =
           PlayerField: Field
           SelectedCell: int * int }
 
-    let defaultDigits = Array2D.init 9 9 (fun y x -> y * 10 + x)
+    let defaultDigits = Array2D.init 9 9 (fun y x -> x * 10 + y)
     let defaultHidden = Array2D.zeroCreate 9 9
 
     let defaultField =
@@ -111,8 +111,16 @@ module SudokuGame =
         | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
         | Digit d ->
             let newCells = Array2D.copy state.PlayerField.Cells
-            let y, x = state.SelectedCell
-            newCells.[y, x] <- { newCells.[y, x] with Digit = d }
+            let x, y = state.SelectedCell
+            let oldCell = newCells.[x, y]
+
+            newCells.[x, y] <- if d <> oldCell.Digit then
+                                   { oldCell with
+                                         Digit = d
+                                         IsHidden = false }
+                               else
+                                   { oldCell with IsHidden = not oldCell.IsHidden }
+
             let newField = { Cells = newCells }
             { state with
                   PlayerField = newField
@@ -130,6 +138,11 @@ module View =
     open Sudoku
     open SudokuGame
 
+    let private intToString =
+        function
+        | n when n >= 0 && n <= 9 -> string n
+        | n -> sprintf "??%d" n
+
     let private fieldView (state: State) (dispatch: Message -> unit) =
         UniformGrid.create
             [ UniformGrid.columns (Sudoku.size state.OriginalField)
@@ -143,16 +156,11 @@ module View =
                              Button.borderBrush Brushes.Black
                              Button.background
                                  (if (x, y) = state.SelectedCell then Brushes.LightCyan else Brushes.LightGray)
-                             Button.content c.Digit
+                             Button.content (if c.IsHidden then "" else intToString c.Digit)
                              Button.foreground Brushes.Black
                              Button.onClick (fun _ -> dispatch <| CellSelected(x, y)) ]
                        |> generalize)
                    |> Array.toList) ]
-
-    let private intToString =
-        function
-        | n when n >= 0 && n <= 9 -> string n
-        | n -> sprintf "??%d" n
 
     let private digitsPanelView (state: State) (dispatch: Message -> unit) =
         UniformGrid.create
@@ -161,10 +169,9 @@ module View =
               UniformGrid.children
                   (Sudoku.size state.OriginalField
                    |> flip Seq.init (fun i ->
-                          Button.create [
-                              Button.content (intToString i)
-                              Button.onClick (fun _ ->
-                                    dispatch <| Digit i) ]
+                          Button.create
+                              [ Button.content (intToString i)
+                                Button.onClick (fun _ -> dispatch <| Digit i) ]
                           |> generalize)
                    |> List.ofSeq) ]
 
