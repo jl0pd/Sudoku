@@ -14,6 +14,8 @@ type MainWindow() as this =
         base.Title <- "Sudoku"
         base.Width <- 400.0
         base.Height <- 400.0
+        base.MinWidth <- 200.
+        base.MinHeight <- 200.
 
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true

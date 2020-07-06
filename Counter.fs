@@ -194,20 +194,40 @@ module View =
         UniformGrid.create
             [ UniformGrid.rows 1
               UniformGrid.margin (Thickness.Parse "0,10")
+              UniformGrid.dock Dock.Bottom
+              UniformGrid.minHeight 40.
               UniformGrid.children
                   (Sudoku.size state.OriginalField
                    |> flip Seq.init (fun i ->
                           Button.create
-                              [ Button.content (intToString i)
+                              [ Button.borderThickness 1.
+                                Button.borderBrush Brushes.Black
+                                Button.foreground Brushes.Black
+                                Button.fontSize 20.
+                                Button.padding 0.
+                                Button.fontWeight FontWeight.DemiBold
+                                Button.background Brushes.WhiteSmoke
+
+                                Button.content (intToString i)
                                 Button.onClick (fun _ -> if not state.IsSolved then dispatch <| Digit i) ]
                           |> generalize)
                    |> List.ofSeq) ]
 
     let view (state: State) (dispatch: Message -> unit) =
-        StackPanel.create
-            [ StackPanel.horizontalAlignment HorizontalAlignment.Center
-              StackPanel.verticalAlignment VerticalAlignment.Center
+        DockPanel.create
+            [ DockPanel.minHeight 200.
+              DockPanel.minWidth 200.
+              DockPanel.maxHeight 600.
+              DockPanel.maxWidth 600.
 
-              StackPanel.children
-                  [ fieldView state dispatch
-                    digitsPanelView state dispatch ] ]
+              DockPanel.children
+                  [ Button.create
+                      [ Button.margin (Thickness.Parse "0,10")
+                        Button.dock Dock.Top
+                        Button.fontSize 16.
+                        Button.horizontalAlignment HorizontalAlignment.Center
+
+                        Button.content "New game"
+                        Button.onClick (fun _ -> dispatch NewGame) ]
+                    digitsPanelView state dispatch
+                    fieldView state dispatch ] ]
