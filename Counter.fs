@@ -55,8 +55,8 @@ module Sudoku =
             let builder = StringBuilder()
             for y = 0 to h - 1 do
                 for x = 0 to w - 1 do
-                    let cc = c.[y, x]
-                    builder.Append(if cc.IsHidden then " " else string cc.Digit)
+                    let { IsHidden = isHidden; Digit = digit } = c.[y, x]
+                    builder.Append(if isHidden then " " else string digit)
                     |> ignore
                 builder.AppendLine() |> ignore
             builder.ToString()
@@ -79,6 +79,41 @@ module Sudoku =
 
     let size = square << rank
 
+module SudokuGenerator =
+    type Randomizer = { Random: System.Random }
+
+    type Cell = { Digit: int}
+
+    type Field = { Cells: Cell[,] }
+
+    let createBaseField (rank: int) =
+        ()
+
+    let transpose (rand: Randomizer) (field: Field) : Field =
+        ()
+
+    let swapRows (rand: Randomizer) (field: Field) : Field =
+        ()
+
+    let swapCols (rand: Randomizer) (field: Field) : Field =
+        ()
+
+    let swapRegionCols (rand: Randomizer) (field: Field) : Field =
+        ()
+
+    let swapRegionRows (rand: Randomizer) (field: Field) : Field =
+        ()
+
+    module Default =
+        let rand = { Random = System.Random() }
+
+        let transpose = transpose rand
+        let swapRows = swapRows rand
+        let swapCols = swapCols rand
+        let swapRegionCols = swapRegionCols  rand
+        let swapRegionRows = swapRegionRows  rand
+
+
 module SudokuGame =
     open Sudoku
 
@@ -91,9 +126,9 @@ module SudokuGame =
     let defaultDigits =
         Array2D.fromArrayOfArrays
             [| [| 0; 1; 2; 3 |]
-               [| 3; 0; 1; 2 |]
+               [| 3; 2; 1; 0 |]
                [| 2; 3; 0; 1 |]
-               [| 1; 2; 3; 0 |] |]
+               [| 1; 0; 3; 2 |] |]
 
     let defaultHidden =
         Array2D.fromArrayOfArrays
@@ -183,7 +218,7 @@ module View =
               UniformGrid.children
                   (state.PlayerField
                    |> split
-                   |> Seq.map (fun g ->
+                   |> Seq.map (fun group ->
                        Border.create
                            [ Border.borderThickness 1.
                              Border.borderBrush Brushes.Red
@@ -192,9 +227,9 @@ module View =
                                  (UniformGrid.create
                                      [ UniformGrid.columns (Sudoku.rank state.OriginalField)
                                        UniformGrid.children
-                                           (g
-                                            |> Seq.map (fun c ->
-                                                let { X = x; Y = y } = c
+                                           (group
+                                            |> Seq.map (fun cell ->
+                                                let { X = x; Y = y; Digit = digit; IsHidden = isHidden } = cell
                                                 Button.create
                                                     [ Button.minWidth 30.
                                                       Button.minHeight 30.
@@ -209,7 +244,7 @@ module View =
                                                           (if state.IsSolved then Brushes.LightGreen
                                                            elif (x, y) = state.SelectedCell then Brushes.LightCyan
                                                            else Brushes.LightGray)
-                                                      Button.content (if c.IsHidden then "" else intToString c.Digit)
+                                                      Button.content (if isHidden then "" else intToString digit)
                                                       Button.onClick (fun _ -> dispatch <| CellSelected(x, y)) ]
                                                 |> generalize)
                                             |> List.ofSeq) ]) ]
