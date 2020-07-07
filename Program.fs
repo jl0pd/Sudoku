@@ -21,7 +21,7 @@ type MainWindow() as this =
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true
 
 
-        Elmish.Program.mkSimple (fun () -> SudokuGame.init) SudokuGame.update View.view
+        Elmish.Program.mkSimple (fun () -> SudokuGame.init()) SudokuGame.update View.view
         |> Program.withHost this
         |> Program.run
 

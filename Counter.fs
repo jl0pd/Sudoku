@@ -4,6 +4,16 @@
 module Functools =
     let flip f x y = f y x
 
+    let rec repeat n f x =
+        match n with
+        | 0 -> x
+        | _ -> repeat (n - 1) f (f x)
+
+    let rec applyAll x =
+        function
+        | f :: fs -> applyAll (f x) fs
+        | [] -> x
+
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Array2D =
     let flat (ar: 'a [,]): 'a [] =
@@ -60,6 +70,12 @@ module Array2D =
             ar.[y, second] <- tmp
         ar
 
+    let transpose (ar: 'a [,]): 'a [,] =
+        ar
+        |> toArrayOfArrays
+        |> Array.transpose
+        |> fromArrayOfArrays
+
 module Sudoku =
     open System.Text
 
@@ -83,6 +99,9 @@ module Sudoku =
                 builder.AppendLine() |> ignore
             builder.ToString()
 
+    let openAll { Cells = cells } =
+        { Cells = Array2D.map (fun c -> { c with IsHidden = false }) cells }
+
     let loadField (hiddenMap: bool [,]) (digitsMap: int [,]): Field =
         let cells =
             Array2D.zip hiddenMap digitsMap
@@ -102,21 +121,22 @@ module Sudoku =
     let size = square << rank
 
 module SudokuGenerator =
-    type Field = { Cells: int [,] }
+    type FieldBuilder = { Cells: int [,] }
 
     type RandRange = int -> int -> int
 
-    let private size { Cells = c } = c.GetLength(0)
-    let private rank { Cells = c } = c.GetLength(0) |> float |> sqrt |> int
+    let size { Cells = c } = c.GetLength(0)
+    let rank { Cells = c } = c.GetLength(0) |> float |> sqrt |> int
 
-    let createBaseField (rank: int): Field =
+    let createBaseField (rank: int): FieldBuilder =
         let size = rank * rank
-        let cells = Array2D.init size size (fun y x ->
-            (y * rank + y / rank + x) % size)
+
+        let cells =
+            Array2D.init size size (fun y x -> (y * rank + y / rank + x) % size)
 
         { Cells = cells }
 
-    let transpose (rand: RandRange) (field: Field): Field =
+    let transpose (rand: RandRange) (field: FieldBuilder): FieldBuilder =
         let cells =
             field.Cells
             |> Array2D.toArrayOfArrays
@@ -126,28 +146,29 @@ module SudokuGenerator =
         { Cells = cells }
 
     let private applyTwice f x = f x, f x
+    let private applyTriple f x = f x, f x, f x
 
-    let swapRows (rand: RandRange) (field: Field): Field =
-        let upperBound = size field
-        let first, second = applyTwice (rand 0) upperBound
-
-        let newCells =
-            Array2D.copy field.Cells
-            |> Array2D.swapRows first second
-
-        { Cells = newCells }
-
-    let swapCols (rand: RandRange) (field: Field): Field =
-        let upperBound = rank field
-        let first, second = applyTwice (rand 0) upperBound
+    let swapRows (rand: RandRange) (field: FieldBuilder): FieldBuilder =
+        let r = rank field
+        let groupNumber, first, second = applyTriple (rand 0) r
 
         let newCells =
             Array2D.copy field.Cells
-            |> Array2D.swapCols first second
+            |> Array2D.swapRows (r * groupNumber + first) (r * groupNumber + second)
 
         { Cells = newCells }
 
-    let swapRegionCols (rand: RandRange) (field: Field): Field =
+    let swapCols (rand: RandRange) (field: FieldBuilder): FieldBuilder =
+        let r = rank field
+        let groupNumber, first, second = applyTriple (rand 0) r
+
+        let newCells =
+            Array2D.copy field.Cells
+            |> Array2D.swapCols (r * groupNumber + first) (r * groupNumber + second)
+
+        { Cells = newCells }
+
+    let swapRegionCols (rand: RandRange) (field: FieldBuilder): FieldBuilder =
         let upperBound = rank field
         let first, second = applyTwice (rand 0) upperBound
 
@@ -160,7 +181,7 @@ module SudokuGenerator =
 
         { Cells = newCells }
 
-    let swapRegionRows (rand: RandRange) (field: Field): Field =
+    let swapRegionRows (rand: RandRange) (field: FieldBuilder): FieldBuilder =
         let upperBound = rank field
         let first, second = applyTwice (rand 0) upperBound
 
@@ -186,36 +207,46 @@ module SudokuGenerator =
 module SudokuGame =
     open Sudoku
 
+    open SudokuGenerator
+    open SudokuGenerator.Default
+
     type State =
         { IsSolved: bool
           OriginalField: Field
           PlayerField: Field
           SelectedCell: int * int }
 
-    let defaultDigits =
-        Array2D.fromArrayOfArrays
-            [| [| 0; 1; 2; 3 |]
-               [| 3; 2; 1; 0 |]
-               [| 2; 3; 0; 1 |]
-               [| 1; 0; 3; 2 |] |]
+    let createRandomField (): Field =
+        let field = createBaseField 2
 
-    let defaultHidden =
-        Array2D.fromArrayOfArrays
-            [| [| false; false; false; true |]
-               [| false; false; false; true |]
-               [| false; false; false; true |]
-               [| false; false; false; true |] |]
+        let operations =
+            [ swapRegionCols
+              swapRows
+              swapRegionRows
+              transpose
+              swapCols ]
 
-    let defaultField =
-        Sudoku.loadField defaultHidden defaultDigits
+        let size = size field
 
-    let init =
+        let hiddenMap =
+            Array2D.init size size (fun x y -> (x + y) % 3 <> 0)
+
+        let f =
+            repeat 50 (fun f -> applyAll f operations) field
+
+        let m =
+            repeat 50 (fun f -> applyAll f operations) ({ Cells = Array2D.map (fun b -> if b then 1 else 0) hiddenMap})
+
+        Sudoku.loadField (Array2D.map ((<>) 0) m.Cells) f.Cells
+
+    let init () =
+        let f = createRandomField ()
         { IsSolved = false
-          OriginalField = Sudoku.loadField (Array2D.map (fun _ -> false) defaultDigits) defaultDigits
-          PlayerField = defaultField
+          OriginalField = openAll f
+          PlayerField = f
           SelectedCell = 0, 0 }
 
-    let isSolved { Cells = c1 } { Cells = c2 } =
+    let isSolved { Field.Cells = c1 } { Field.Cells = c2 } =
         Array2D.zip c1 c2
         |> Array2D.toSeq
         |> Seq.forall (fun (x, y) -> x.Digit = y.Digit && x.IsHidden = y.IsHidden)
@@ -227,7 +258,7 @@ module SudokuGame =
 
     let update (msg: Message) (state: State): State =
         match msg with
-        | NewGame -> init
+        | NewGame -> init ()
         | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
         | Digit d ->
             if state.IsSolved then
@@ -245,7 +276,7 @@ module SudokuGame =
                                              Digit = d
                                              IsHidden = false }
 
-                let newField = { Cells = newCells }
+                let newField = { Field.Cells = newCells }
                 { state with
                       PlayerField = newField
                       IsSolved = isSolved state.OriginalField newField }
@@ -265,7 +296,7 @@ module View =
     let private intToString =
         function
         | n when n >= 0 && n <= 9 -> string n
-        | n -> sprintf "??%d" n
+        | n -> sprintf "%X" n
 
     let private split ({ Cells = cells } as field): Cell seq seq =
         let r = rank field
@@ -290,7 +321,7 @@ module View =
                    |> Seq.map (fun group ->
                        Border.create
                            [ Border.borderThickness 1.
-                             Border.borderBrush Brushes.Red
+                             Border.borderBrush Brushes.Black
 
                              Border.child
                                  (UniformGrid.create
@@ -347,8 +378,8 @@ module View =
         DockPanel.create
             [ DockPanel.minHeight 200.
               DockPanel.minWidth 200.
-              DockPanel.maxHeight 600.
-              DockPanel.maxWidth 600.
+            //   DockPanel.maxHeight 600.
+            //   DockPanel.maxWidth 600.
 
               DockPanel.children
                   [ Button.create
