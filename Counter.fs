@@ -109,7 +109,12 @@ module SudokuGenerator =
     let private size { Cells = c } = c.GetLength(0)
     let private rank { Cells = c } = c.GetLength(0) |> float |> sqrt |> int
 
-    let createBaseField (rank: int): Field = ()
+    let createBaseField (rank: int): Field =
+        let size = rank * rank
+        let cells = Array2D.init size size (fun y x ->
+            (y * rank + y / rank + x) % size)
+
+        { Cells = cells }
 
     let transpose (rand: RandRange) (field: Field): Field =
         let cells =
@@ -133,7 +138,7 @@ module SudokuGenerator =
         { Cells = newCells }
 
     let swapCols (rand: RandRange) (field: Field): Field =
-        let upperBound = size field
+        let upperBound = rank field
         let first, second = applyTwice (rand 0) upperBound
 
         let newCells =
