@@ -6,10 +6,10 @@ module Functools =
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Array2D =
-    let flat (arr: 'a [,]): 'a [] =
-        [| for x = 0 to (Array2D.length1 arr) - 1 do
-            for y = 0 to (Array2D.length2 arr) - 1 do
-                yield arr.[x, y] |]
+    let flat (ar: 'a [,]): 'a [] =
+        [| for x = 0 to (Array2D.length1 ar) - 1 do
+            for y = 0 to (Array2D.length2 ar) - 1 do
+                yield ar.[x, y] |]
 
     let toSeq ar =
         seq {
@@ -17,6 +17,11 @@ module Array2D =
                 for y = 0 to (Array2D.length2 ar) - 1 do
                     yield ar.[x, y]
         }
+
+    let toArrayOfArrays (ar: 'a [,]) =
+        [| for x = 0 to (Array2D.length1 ar) - 1 do
+            [| for y = 0 to (Array2D.length2 ar) - 1 do
+                yield ar.[x, y] |] |]
 
     let fromArrayOfArrays (ar: 'a [] []): 'a [,] =
         let h, w = ar.Length, ar.[0].Length
@@ -37,6 +42,23 @@ module Array2D =
                 ar1.[y, x], ar2.[y, x] |] |]
         |> fromArrayOfArrays
 
+    let swapRows (first: int) (second: int) (ar: 'a [,]): 'a [,] =
+        let length = ar.GetLength(1)
+
+        for x = 0 to length - 1 do
+            let tmp = ar.[first, x]
+            ar.[first, x] <- ar.[second, x]
+            ar.[second, x] <- tmp
+        ar
+
+    let swapCols (first: int) (second: int) (ar: 'a [,]): 'a [,] =
+        let length = ar.GetLength(0)
+
+        for y = 0 to length - 1 do
+            let tmp = ar.[y, first]
+            ar.[y, first] <- ar.[y, second]
+            ar.[y, second] <- tmp
+        ar
 
 module Sudoku =
     open System.Text
@@ -80,39 +102,81 @@ module Sudoku =
     let size = square << rank
 
 module SudokuGenerator =
-    type Randomizer = { Random: System.Random }
+    type Field = { Cells: int [,] }
 
-    type Cell = { Digit: int}
+    type RandRange = int -> int -> int
 
-    type Field = { Cells: Cell[,] }
+    let private size { Cells = c } = c.GetLength(0)
+    let private rank { Cells = c } = c.GetLength(0) |> float |> sqrt |> int
 
-    let createBaseField (rank: int) =
-        ()
+    let createBaseField (rank: int): Field = ()
 
-    let transpose (rand: Randomizer) (field: Field) : Field =
-        ()
+    let transpose (rand: RandRange) (field: Field): Field =
+        let cells =
+            field.Cells
+            |> Array2D.toArrayOfArrays
+            |> Array.transpose
+            |> Array2D.fromArrayOfArrays
 
-    let swapRows (rand: Randomizer) (field: Field) : Field =
-        ()
+        { Cells = cells }
 
-    let swapCols (rand: Randomizer) (field: Field) : Field =
-        ()
+    let private applyTwice f x = f x, f x
 
-    let swapRegionCols (rand: Randomizer) (field: Field) : Field =
-        ()
+    let swapRows (rand: RandRange) (field: Field): Field =
+        let upperBound = size field
+        let first, second = applyTwice (rand 0) upperBound
 
-    let swapRegionRows (rand: Randomizer) (field: Field) : Field =
-        ()
+        let newCells =
+            Array2D.copy field.Cells
+            |> Array2D.swapRows first second
+
+        { Cells = newCells }
+
+    let swapCols (rand: RandRange) (field: Field): Field =
+        let upperBound = size field
+        let first, second = applyTwice (rand 0) upperBound
+
+        let newCells =
+            Array2D.copy field.Cells
+            |> Array2D.swapCols first second
+
+        { Cells = newCells }
+
+    let swapRegionCols (rand: RandRange) (field: Field): Field =
+        let upperBound = rank field
+        let first, second = applyTwice (rand 0) upperBound
+
+        let newCells = Array2D.copy field.Cells
+
+        for x = 0 to upperBound - 1 do
+            newCells
+            |> Array2D.swapCols (first * upperBound + x) (second * upperBound + x)
+            |> ignore
+
+        { Cells = newCells }
+
+    let swapRegionRows (rand: RandRange) (field: Field): Field =
+        let upperBound = rank field
+        let first, second = applyTwice (rand 0) upperBound
+
+        let newCells = Array2D.copy field.Cells
+
+        for y = 0 to upperBound - 1 do
+            newCells
+            |> Array2D.swapRows (first * upperBound + y) (second * upperBound + y)
+            |> ignore
+
+        { Cells = newCells }
 
     module Default =
-        let rand = { Random = System.Random() }
+        let rand = System.Random()
+        let randRange start stop = rand.Next(start, stop)
 
-        let transpose = transpose rand
-        let swapRows = swapRows rand
-        let swapCols = swapCols rand
-        let swapRegionCols = swapRegionCols  rand
-        let swapRegionRows = swapRegionRows  rand
-
+        let transpose = transpose randRange
+        let swapRows = swapRows randRange
+        let swapCols = swapCols randRange
+        let swapRegionCols = swapRegionCols randRange
+        let swapRegionRows = swapRegionRows randRange
 
 module SudokuGame =
     open Sudoku
