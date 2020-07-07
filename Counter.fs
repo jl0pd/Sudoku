@@ -163,32 +163,58 @@ module View =
         | n when n >= 0 && n <= 9 -> string n
         | n -> sprintf "??%d" n
 
+    let private split ({ Cells = cells } as field): Cell seq seq =
+        let r = rank field
+
+        seq {
+            for gy = 0 to r - 1 do
+                for gx = 0 to r - 1 do
+                    seq {
+                        for iy = 0 to r - 1 do
+                            for ix = 0 to r - 1 do
+                                let x, y = (gx * r + ix), (gy * r + iy)
+                                cells.[y, x]
+                    }
+        }
+
     let private fieldView (state: State) (dispatch: Message -> unit) =
         UniformGrid.create
-            [ UniformGrid.columns (Sudoku.size state.OriginalField)
+            [ UniformGrid.columns (Sudoku.rank state.OriginalField)
               UniformGrid.children
-                  (state.PlayerField.Cells
-                   |> Array2D.flat
-                   |> Array.map (fun c ->
-                       let { X = x; Y = y } = c
-                       Button.create
-                           [ Button.minWidth 30.
-                             Button.minHeight 30.
-                             Button.borderThickness 1.
-                             Button.borderBrush Brushes.Black
-                             Button.foreground Brushes.Black
-                             Button.fontSize 20.
-                             Button.padding 0.
-                             Button.fontWeight FontWeight.DemiBold
+                  (state.PlayerField
+                   |> split
+                   |> Seq.map (fun g ->
+                       Border.create
+                           [ Border.borderThickness 1.
+                             Border.borderBrush Brushes.Red
 
-                             Button.background
-                                 (if state.IsSolved then Brushes.LightGreen
-                                  elif (x, y) = state.SelectedCell then Brushes.LightCyan
-                                  else Brushes.LightGray)
-                             Button.content (if c.IsHidden then "" else intToString c.Digit)
-                             Button.onClick (fun _ -> dispatch <| CellSelected(x, y)) ]
+                             Border.child
+                                 (UniformGrid.create
+                                     [ UniformGrid.columns (Sudoku.rank state.OriginalField)
+                                       UniformGrid.children
+                                           (g
+                                            |> Seq.map (fun c ->
+                                                let { X = x; Y = y } = c
+                                                Button.create
+                                                    [ Button.minWidth 30.
+                                                      Button.minHeight 30.
+                                                      Button.borderThickness 1.
+                                                      Button.borderBrush Brushes.Black
+                                                      Button.foreground Brushes.Black
+                                                      Button.fontSize 20.
+                                                      Button.padding 0.
+                                                      Button.fontWeight FontWeight.DemiBold
+
+                                                      Button.background
+                                                          (if state.IsSolved then Brushes.LightGreen
+                                                           elif (x, y) = state.SelectedCell then Brushes.LightCyan
+                                                           else Brushes.LightGray)
+                                                      Button.content (if c.IsHidden then "" else intToString c.Digit)
+                                                      Button.onClick (fun _ -> dispatch <| CellSelected(x, y)) ]
+                                                |> generalize)
+                                            |> List.ofSeq) ]) ]
                        |> generalize)
-                   |> Array.toList) ]
+                   |> List.ofSeq) ]
 
     let private digitsPanelView (state: State) (dispatch: Message -> unit) =
         UniformGrid.create
