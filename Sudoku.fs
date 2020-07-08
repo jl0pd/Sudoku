@@ -372,6 +372,7 @@ module View =
 
                         NumericUpDown.value (float state.Rank)
                         NumericUpDown.onValueChanged (dispatch << RankChanged << int) ]
+
                     Button.create
                         [ Button.margin (Thickness.Parse "10,2")
                           Button.fontSize 16.
@@ -381,8 +382,7 @@ module View =
                           Button.onClick (fun _ -> dispatch NewGame) ]
 
                     CheckBox.create
-                        [
-                          CheckBox.margin (Thickness.Parse "10,2")
+                        [ CheckBox.margin (Thickness.Parse "10,2")
                           CheckBox.content "Highlight"
                           CheckBox.isThreeState false
                           CheckBox.fontSize 16.
@@ -395,8 +395,6 @@ module View =
         DockPanel.create
             [ DockPanel.minHeight 200.
               DockPanel.minWidth 200.
-              //   DockPanel.maxHeight 600.
-              //   DockPanel.maxWidth 600.
 
               DockPanel.children
                   [ menuView state dispatch
