@@ -157,6 +157,7 @@ module SudokuGame =
           Rank: int
           OriginalField: Field
           PlayerField: Field
+          HighlightEnabled: bool
           SelectedCell: int * int }
 
     let createRandomField rank: Field =
@@ -193,15 +194,15 @@ module SudokuGame =
           Rank = 3
           OriginalField = openAll f
           PlayerField = f
+          HighlightEnabled = true
           SelectedCell = 0, 0 }
 
-    let newGame rank =
+    let newGame ({ Rank = rank } as state) =
         let f = createRandomField rank
-        { IsSolved = false
-          Rank = rank
-          OriginalField = openAll f
-          PlayerField = f
-          SelectedCell = 0, 0 }
+        { state with
+              IsSolved = false
+              OriginalField = openAll f
+              PlayerField = f }
 
     let isSolved { Field.Cells = c1 } { Field.Cells = c2 } =
         Array2D.zip c1 c2
@@ -212,11 +213,15 @@ module SudokuGame =
         | NewGame
         | RankChanged of int
         | CellSelected of int * int
+        | HighlightChanged of bool
         | Digit of int
 
     let update (msg: Message) (state: State): State =
         match msg with
-        | NewGame -> newGame state.Rank
+        | NewGame -> newGame state
+        | HighlightChanged ->
+            { state with
+                  HighlightEnabled = not state.HighlightEnabled }
         | RankChanged d -> { state with Rank = d }
         | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
         | Digit d ->
@@ -270,6 +275,9 @@ module View =
         }
 
     let private fieldView (state: State) (dispatch: Message -> unit) =
+        let selectedCell =
+            state.PlayerField.Cells.[fst state.SelectedCell, snd state.SelectedCell]
+
         UniformGrid.create
             [ UniformGrid.columns (Sudoku.rank state.OriginalField)
               UniformGrid.children
@@ -278,7 +286,7 @@ module View =
                    |> Seq.map (fun group ->
                        Border.create
                            [ Border.borderThickness 1.
-                             Border.borderBrush Brushes.Black
+                             Border.borderBrush Brushes.Orange
 
                              Border.child
                                  (UniformGrid.create
@@ -302,9 +310,17 @@ module View =
                                                                FontWeight.DemiBold)
 
                                                       Button.background
-                                                          (if state.IsSolved then Brushes.LightGreen
-                                                           elif (x, y) = state.SelectedCell then Brushes.LightCyan
-                                                           else Brushes.LightGray)
+                                                          (if state.IsSolved then
+                                                              Brushes.LightGreen
+                                                           elif (x, y) = state.SelectedCell then
+                                                               Brushes.LightCyan
+                                                           elif state.HighlightEnabled
+                                                                && not selectedCell.IsHidden
+                                                                && cell.Digit = selectedCell.Digit
+                                                                && not cell.IsHidden then
+                                                               Brushes.LightYellow
+                                                           else
+                                                               Brushes.LightGray)
                                                       Button.content (if isHidden then "" else intToString digit)
                                                       Button.onClick (fun _ -> dispatch <| CellSelected(x, y)) ]
                                                 |> generalize)
@@ -341,6 +357,7 @@ module View =
         StackPanel.create
             [ StackPanel.orientation Orientation.Horizontal
               StackPanel.dock Dock.Top
+              StackPanel.height 36.
 
               StackPanel.children
                   [ NumericUpDown.create
@@ -348,17 +365,29 @@ module View =
                         NumericUpDown.minimum 1.
                         NumericUpDown.fontSize 16.
                         NumericUpDown.width 80.
-                        NumericUpDown.height 50.
+                        NumericUpDown.margin (Thickness.Parse "10,2")
+                        NumericUpDown.padding 0.
 
                         NumericUpDown.value (float state.Rank)
                         NumericUpDown.onValueChanged (dispatch << RankChanged << int) ]
                     Button.create
-                        [ Button.margin (Thickness.Parse "0,10")
+                        [ Button.margin (Thickness.Parse "10,2")
                           Button.fontSize 16.
                           Button.horizontalAlignment HorizontalAlignment.Center
 
                           Button.content "New game"
-                          Button.onClick (fun _ -> dispatch NewGame) ] ] ]
+                          Button.onClick (fun _ -> dispatch NewGame) ]
+
+                    CheckBox.create
+                        [
+                          CheckBox.margin (Thickness.Parse "10,2")
+                          CheckBox.content "Highlight"
+                          CheckBox.isThreeState false
+                          CheckBox.fontSize 16.
+
+                          CheckBox.isChecked state.HighlightEnabled
+                          CheckBox.onChecked (fun _ -> dispatch <| HighlightChanged true)
+                          CheckBox.onUnchecked (fun _ -> dispatch <| HighlightChanged false) ] ] ]
 
     let view (state: State) (dispatch: Message -> unit) =
         DockPanel.create
