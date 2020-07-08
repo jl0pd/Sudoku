@@ -158,7 +158,12 @@ module SudokuGame =
           SelectedCell: int * int }
 
     let createRandomField rank: Field =
-        let field = createBaseField rank
+        let f = createBaseField rank
+        let field = { Cells = if rank <= 3 then
+                                f.Cells
+                                |> Array2D.map ((+) 1)
+                               else
+                                f.Cells }
 
         let operations =
             [ swapRegionCols
@@ -169,14 +174,15 @@ module SudokuGame =
 
         let size = size field
 
+        let rand = System.Random()
         let hiddenMap =
-            Array2D.init size size (fun x y -> (x + y) % 3 <> 0)
+            Array2D.init size size (fun x y -> rand.Next(0, 100) > 30)
 
         let f =
             repeat 50 (fun f -> applyAll f operations) field
 
         let m =
-            repeat 50 (fun f -> applyAll f operations) ({ Cells = Array2D.map (fun b -> if b then 1 else 0) hiddenMap})
+            repeat 50 (fun f -> applyAll f operations) ({ Cells = Array2D.map (fun b -> if b then 1 else 0) hiddenMap })
 
         Sudoku.loadField (Array2D.map ((<>) 0) m.Cells) f.Cells
 
@@ -210,7 +216,7 @@ module SudokuGame =
     let update (msg: Message) (state: State): State =
         match msg with
         | NewGame -> newGame state.Rank
-        | RankChanged d -> {state with Rank = d}
+        | RankChanged d -> { state with Rank = d }
         | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
         | Digit d ->
             if state.IsSolved then
@@ -245,10 +251,7 @@ module View =
     open Sudoku
     open SudokuGame
 
-    let private intToString =
-        function
-        | n when n >= 0 && n <= 9 -> string n
-        | n -> sprintf "%X" n
+    let private intToString = sprintf "%X"
 
     let private split ({ Cells = cells } as field): Cell seq seq =
         let r = rank field
@@ -304,14 +307,16 @@ module View =
                    |> List.ofSeq) ]
 
     let private digitsPanelView (state: State) (dispatch: Message -> unit) =
+        let size = Sudoku.size state.OriginalField
         UniformGrid.create
             [ UniformGrid.rows 1
               UniformGrid.margin (Thickness.Parse "0,10")
               UniformGrid.dock Dock.Bottom
               UniformGrid.minHeight 40.
               UniformGrid.children
-                  (Sudoku.size state.OriginalField
+                  (size
                    |> flip Seq.init (fun i ->
+                          let n = if size <= 9 then i + 1 else i
                           Button.create
                               [ Button.borderThickness 1.
                                 Button.borderBrush Brushes.Black
@@ -321,45 +326,42 @@ module View =
                                 Button.fontWeight FontWeight.DemiBold
                                 Button.background Brushes.WhiteSmoke
 
-                                Button.content (intToString i)
-                                Button.onClick (fun _ -> if not state.IsSolved then dispatch <| Digit i) ]
+                                Button.content (intToString n)
+                                Button.onClick (fun _ -> if not state.IsSolved then dispatch <| Digit n) ]
                           |> generalize)
                    |> List.ofSeq) ]
 
     let private menuView (state: State) (dispatch: Message -> unit) =
-        StackPanel.create [
-            StackPanel.orientation Orientation.Horizontal
-            StackPanel.dock Dock.Top
+        StackPanel.create
+            [ StackPanel.orientation Orientation.Horizontal
+              StackPanel.dock Dock.Top
 
-            StackPanel.children [
-                NumericUpDown.create [
-                    NumericUpDown.increment 1.
-                    NumericUpDown.minimum 1.
-                    NumericUpDown.fontSize 16.
-                    NumericUpDown.width 80.
-                    NumericUpDown.height 50.
+              StackPanel.children
+                  [ NumericUpDown.create
+                      [ NumericUpDown.increment 1.
+                        NumericUpDown.minimum 1.
+                        NumericUpDown.fontSize 16.
+                        NumericUpDown.width 80.
+                        NumericUpDown.height 50.
 
-                    NumericUpDown.value (float state.Rank)
-                    NumericUpDown.onValueChanged (dispatch << RankChanged << int)
-                ]
-                Button.create
-                      [ Button.margin (Thickness.Parse "0,10")
-                        Button.fontSize 16.
-                        Button.horizontalAlignment HorizontalAlignment.Center
+                        NumericUpDown.value (float state.Rank)
+                        NumericUpDown.onValueChanged (dispatch << RankChanged << int) ]
+                    Button.create
+                        [ Button.margin (Thickness.Parse "0,10")
+                          Button.fontSize 16.
+                          Button.horizontalAlignment HorizontalAlignment.Center
 
-                        Button.content "New game"
-                        Button.onClick (fun _ -> dispatch NewGame) ]
-                ]
-            ]
+                          Button.content "New game"
+                          Button.onClick (fun _ -> dispatch NewGame) ] ] ]
 
     let view (state: State) (dispatch: Message -> unit) =
         DockPanel.create
             [ DockPanel.minHeight 200.
               DockPanel.minWidth 200.
-            //   DockPanel.maxHeight 600.
-            //   DockPanel.maxWidth 600.
+              //   DockPanel.maxHeight 600.
+              //   DockPanel.maxWidth 600.
 
               DockPanel.children
-                [   menuView state dispatch
+                  [ menuView state dispatch
                     digitsPanelView state dispatch
                     fieldView state dispatch ] ]
