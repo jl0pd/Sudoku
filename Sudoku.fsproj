@@ -7,7 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Counter.fs" />
+    <Compile Include="Extensions.fs" />
+    <Compile Include="Sudoku.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
