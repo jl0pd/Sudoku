@@ -24,7 +24,7 @@ module Sudoku =
           Y: int
           Digit: int
           IsHidden: bool
-          Unchangeable: bool }
+          IsUnchangeable: bool }
 
     type Field =
         { Cells: Cell [,] }
@@ -51,7 +51,7 @@ module Sudoku =
                   Y = y
                   Digit = d
                   IsHidden = h
-                  Unchangeable = not h })
+                  IsUnchangeable = not h })
 
         { Cells = cells }
 
@@ -184,7 +184,7 @@ module SudokuGame =
             repeat 50 (fun f -> applyAll f operations) field
 
         let m =
-            repeat 50 (fun f -> applyAll f operations) ({ Cells = Array2D.map (fun b -> if b then 1 else 0) hiddenMap })
+            repeat 10 (fun f -> applyAll f operations) ({ Cells = Array2D.map (fun b -> if b then 1 else 0) hiddenMap })
 
         Sudoku.loadField (Array2D.map ((<>) 0) m.Cells) f.Cells
 
@@ -226,7 +226,7 @@ module SudokuGame =
         | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
         | Digit d ->
             if state.IsSolved
-               || state.PlayerField.Cells.[fst state.SelectedCell, snd state.SelectedCell].Unchangeable then
+               || state.PlayerField.Cells.[fst state.SelectedCell, snd state.SelectedCell].IsUnchangeable then
                 state
             else
                 let newCells = Array2D.copy state.PlayerField.Cells
@@ -300,12 +300,14 @@ module View =
                                                       Button.minHeight 30.
                                                       Button.borderThickness 1.
                                                       Button.borderBrush Brushes.Black
-                                                      Button.foreground Brushes.Black
+                                                      Button.foreground
+                                                        (if cell.IsUnchangeable then Brushes.Black
+                                                         else Brushes.DarkSlateGray)
                                                       Button.fontSize 20.
                                                       Button.padding 0.
                                                       Button.fontWeight
-                                                          (if cell.Unchangeable then
-                                                              FontWeight.Bold
+                                                          (if cell.IsUnchangeable then
+                                                               FontWeight.Bold
                                                            else
                                                                FontWeight.DemiBold)
 
