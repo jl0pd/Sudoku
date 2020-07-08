@@ -202,7 +202,8 @@ module SudokuGame =
         { state with
               IsSolved = false
               OriginalField = openAll f
-              PlayerField = f }
+              PlayerField = f
+              SelectedCell = 0, 0 }
 
     let isSolved { Field.Cells = c1 } { Field.Cells = c2 } =
         Array2D.zip c1 c2
