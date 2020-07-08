@@ -23,7 +23,8 @@ module Sudoku =
         { X: int
           Y: int
           Digit: int
-          IsHidden: bool }
+          IsHidden: bool
+          Unchangeable: bool }
 
     type Field =
         { Cells: Cell [,] }
@@ -49,7 +50,8 @@ module Sudoku =
                 { X = x
                   Y = y
                   Digit = d
-                  IsHidden = h })
+                  IsHidden = h
+                  Unchangeable = not h })
 
         { Cells = cells }
 
@@ -159,11 +161,9 @@ module SudokuGame =
 
     let createRandomField rank: Field =
         let f = createBaseField rank
-        let field = { Cells = if rank <= 3 then
-                                f.Cells
-                                |> Array2D.map ((+) 1)
-                               else
-                                f.Cells }
+
+        let field =
+            { Cells = if rank <= 3 then f.Cells |> Array2D.map ((+) 1) else f.Cells }
 
         let operations =
             [ swapRegionCols
@@ -175,6 +175,7 @@ module SudokuGame =
         let size = size field
 
         let rand = System.Random()
+
         let hiddenMap =
             Array2D.init size size (fun x y -> rand.Next(0, 100) > 30)
 
@@ -219,7 +220,8 @@ module SudokuGame =
         | RankChanged d -> { state with Rank = d }
         | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
         | Digit d ->
-            if state.IsSolved then
+            if state.IsSolved
+               || state.PlayerField.Cells.[fst state.SelectedCell, snd state.SelectedCell].Unchangeable then
                 state
             else
                 let newCells = Array2D.copy state.PlayerField.Cells
@@ -293,7 +295,11 @@ module View =
                                                       Button.foreground Brushes.Black
                                                       Button.fontSize 20.
                                                       Button.padding 0.
-                                                      Button.fontWeight FontWeight.DemiBold
+                                                      Button.fontWeight
+                                                          (if cell.Unchangeable then
+                                                              FontWeight.Bold
+                                                           else
+                                                               FontWeight.DemiBold)
 
                                                       Button.background
                                                           (if state.IsSolved then Brushes.LightGreen
