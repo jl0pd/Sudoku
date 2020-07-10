@@ -1,12 +1,13 @@
-﻿namespace Sudoku
-
-open Elmish
+﻿open Elmish
 open Avalonia
 open Avalonia.Controls.ApplicationLifetimes
-open Avalonia.Input
 open Avalonia.FuncUI
 open Avalonia.FuncUI.Elmish
 open Avalonia.FuncUI.Components.Hosts
+
+open Sudoku
+open Sudoku
+open Sudoku.Avalonia
 
 type MainWindow() as this =
     inherit HostWindow()
@@ -19,7 +20,6 @@ type MainWindow() as this =
 
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true
-
 
         Elmish.Program.mkSimple (fun () -> SudokuGame.init) SudokuGame.update View.view
         |> Program.withHost this
