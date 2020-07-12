@@ -47,7 +47,7 @@ module Sudoku =
     let loadField (hiddenMap: bool [,]) (digitsMap: int [,]): Field =
         let cells =
             Array2D.zip hiddenMap digitsMap
-            |> Array2D.mapi (fun x y (h, d) ->
+            |> Array2D.mapi (fun y x (h, d) ->
                 { X = x
                   Y = y
                   Digit = d
@@ -62,6 +62,21 @@ module Sudoku =
     let inline private square x = x * x
 
     let size = square << rank
+
+    let getGroups ({ Cells = cells } as field): Cell seq seq =
+        let r = rank field
+
+        seq {
+            for gy = 0 to r - 1 do
+                for gx = 0 to r - 1 do
+                    seq {
+                        for iy = 0 to r - 1 do
+                            for ix = 0 to r - 1 do
+                                let x, y = (gx * r + ix), (gy * r + iy)
+                                cells.[y, x]
+                    }
+        }
+
 
 module SudokuGenerator =
     type FieldBuilder = { Cells: int [,] }
@@ -236,7 +251,7 @@ module SudokuGame =
                 let newCells = Array2D.copy state.PlayerField.Cells
                 let ({ X = x; Y = y } as oldCell) = selected.Value
 
-                newCells.[x, y] <- if d = oldCell.Digit then
+                newCells.[y, x] <- if d = oldCell.Digit then
                                        { oldCell with
                                              IsHidden = not oldCell.IsHidden }
                                    else

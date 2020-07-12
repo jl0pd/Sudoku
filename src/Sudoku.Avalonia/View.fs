@@ -16,27 +16,13 @@ module View =
 
     let private intToString = sprintf "%X"
 
-    let private split ({ Cells = cells } as field): Cell seq seq =
-        let r = rank field
-
-        seq {
-            for gy = 0 to r - 1 do
-                for gx = 0 to r - 1 do
-                    seq {
-                        for iy = 0 to r - 1 do
-                            for ix = 0 to r - 1 do
-                                let x, y = (gx * r + ix), (gy * r + iy)
-                                cells.[y, x]
-                    }
-        }
-
     let private fieldView (state: State) (dispatch: Message -> unit) =
         let selectedCell = state.SelectedCell
         UniformGrid.create
             [ UniformGrid.columns (rank state.OriginalField)
               UniformGrid.children
                   (state.PlayerField
-                   |> split
+                   |> getGroups
                    |> Seq.map (fun group ->
                        Border.create
                            [ Border.borderThickness 1.
@@ -74,13 +60,15 @@ module View =
                                                            elif state.HighlightEnabled
                                                                 && selectedCell.IsSome
                                                                 && not selectedCell.Value.IsHidden
-                                                                && cell.Digit = selectedCell.Value.Digit
-                                                                && not cell.IsHidden then
+                                                                && digit = selectedCell.Value.Digit
+                                                                && not isHidden then
                                                                Brushes.LightYellow
                                                            else
                                                                Brushes.LightGray)
                                                       Button.content (if isHidden then "" else intToString digit)
-                                                      Button.onClick (fun _ -> dispatch <| CellSelected cell) ]
+                                                      Button.onClick (fun _ ->
+                                                        printfn "%A" cell
+                                                        dispatch <| CellSelected cell) ]
                                                 |> generalize)
                                             |> List.ofSeq) ]) ]
                        |> generalize)
