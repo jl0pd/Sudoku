@@ -4,15 +4,21 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "buildAvalonia",
             "command": "dotnet",
             "type": "shell",
             "args": [
                 "build",
+                {
+                    "quoting": "weak",
+                    "value": "-v n"
+                },
                 // Ask dotnet build to generate full paths for file names.
                 "/property:GenerateFullPaths=true",
                 // Do not generate summary otherwise it leads to duplicate errors in Problems panel
-                "/consoleloggerparameters:NoSummary"
+                "/consoleloggerparameters:NoSummary",
+
+                "src/Sudoku.Avalonia/Sudoku.Avalonia.fsproj"
             ],
             "group": "build",
             "presentation": {
