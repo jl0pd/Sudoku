@@ -57,12 +57,12 @@ module View =
                                                       Button.borderThickness 1.
                                                       Button.borderBrush Brushes.Black
                                                       Button.foreground
-                                                        (if cell.IsUnchangeable then Brushes.Black
+                                                        (if cell.IsUnchangable then Brushes.Black
                                                          else Brushes.DarkSlateGray)
                                                       Button.fontSize 20.
                                                       Button.padding 0.
                                                       Button.fontWeight
-                                                          (if cell.IsUnchangeable then
+                                                          (if cell.IsUnchangable then
                                                                FontWeight.Bold
                                                            else
                                                                FontWeight.DemiBold)

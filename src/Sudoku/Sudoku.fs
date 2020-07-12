@@ -24,7 +24,7 @@ module Sudoku =
           Y: int
           Digit: int
           IsHidden: bool
-          IsUnchangeable: bool }
+          IsUnchangable: bool }
 
     type Field =
         { Cells: Cell [,] }
@@ -51,7 +51,7 @@ module Sudoku =
                   Y = y
                   Digit = d
                   IsHidden = h
-                  IsUnchangeable = not h })
+                  IsUnchangable = not h })
 
         { Cells = cells }
 
@@ -227,7 +227,7 @@ module SudokuGame =
         | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
         | Digit d ->
             if state.IsSolved
-               || state.PlayerField.Cells.[fst state.SelectedCell, snd state.SelectedCell].IsUnchangeable then
+               || state.PlayerField.Cells.[fst state.SelectedCell, snd state.SelectedCell].IsUnchangable then
                 state
             else
                 let newCells = Array2D.copy state.PlayerField.Cells
