@@ -25,6 +25,7 @@ module Sudoku =
           Digit: int
           IsHidden: bool
           IsUnchangable: bool }
+        with member c.Coords = (c.X, c.Y)
 
     type Field =
         { Cells: Cell [,] }
@@ -158,7 +159,7 @@ module SudokuGame =
           OriginalField: Field
           PlayerField: Field
           HighlightEnabled: bool
-          SelectedCell: int * int }
+          SelectedCell: Cell option }
 
     let createRandomField rank: Field =
         let f = createBaseField rank
@@ -195,7 +196,7 @@ module SudokuGame =
           OriginalField = openAll f
           PlayerField = f
           HighlightEnabled = true
-          SelectedCell = 0, 0 }
+          SelectedCell = None }
 
     let newGame ({ Rank = rank } as state) =
         let f = createRandomField rank
@@ -203,7 +204,7 @@ module SudokuGame =
               IsSolved = false
               OriginalField = openAll f
               PlayerField = f
-              SelectedCell = 0, 0 }
+              SelectedCell = None }
 
     let isSolved { Field.Cells = c1 } { Field.Cells = c2 } =
         Array2D.zip c1 c2
@@ -213,7 +214,7 @@ module SudokuGame =
     type Message =
         | NewGame
         | RankChanged of int
-        | CellSelected of int * int
+        | CellSelected of Cell
         | HighlightChanged of bool
         | Digit of int
 
@@ -224,15 +225,16 @@ module SudokuGame =
             { state with
                   HighlightEnabled = not state.HighlightEnabled }
         | RankChanged d -> { state with Rank = d }
-        | CellSelected (x, y) -> { state with SelectedCell = (x, y) }
+        | CellSelected c -> { state with SelectedCell = Some c }
         | Digit d ->
+            let selected = state.SelectedCell
             if state.IsSolved
-               || state.PlayerField.Cells.[fst state.SelectedCell, snd state.SelectedCell].IsUnchangable then
+               || selected.IsNone
+               || selected.Value.IsUnchangable then
                 state
             else
                 let newCells = Array2D.copy state.PlayerField.Cells
-                let x, y = state.SelectedCell
-                let oldCell = newCells.[x, y]
+                let ({ X = x; Y = y } as oldCell) = selected.Value
 
                 newCells.[x, y] <- if d = oldCell.Digit then
                                        { oldCell with
