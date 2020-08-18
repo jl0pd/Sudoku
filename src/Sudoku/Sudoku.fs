@@ -54,7 +54,8 @@ module Sudoku =
                   IsHidden = h
                   IsUnchangable = not h })
 
-        { Cells = cells }
+        let f = { Cells = cells }
+        f
 
     let rank { Cells = cells } =
         cells.GetLength(0) |> float |> sqrt |> int
@@ -63,19 +64,15 @@ module Sudoku =
 
     let size = square << rank
 
-    let getGroups ({ Cells = cells } as field): Cell seq seq =
+    let getGroups ({ Cells = cells } as field): Cell list list =
         let r = rank field
 
-        seq {
-            for gy = 0 to r - 1 do
-                for gx = 0 to r - 1 do
-                    seq {
-                        for iy = 0 to r - 1 do
-                            for ix = 0 to r - 1 do
-                                let x, y = (gx * r + ix), (gy * r + iy)
-                                cells.[y, x]
-                    }
-        }
+        [ for gy = 0 to r - 1 do
+            for gx = 0 to r - 1 do
+                [ for iy = 0 to r - 1 do
+                    for ix = 0 to r - 1 do
+                        let x, y = (gx * r + ix), (gy * r + iy)
+                        cells.[y, x] ] ]
 
 
 module SudokuGenerator =
@@ -180,7 +177,7 @@ module SudokuGame =
         let f = createBaseField rank
 
         let field =
-            { Cells = if rank <= 3 then f.Cells |> Array2D.map ((+) 1) else f.Cells }
+            { Cells = if rank <= 3 then Array2D.map ((+) 1) f.Cells else f.Cells }
 
         let operations =
             [ swapRegionCols
@@ -236,7 +233,7 @@ module SudokuGame =
     let update (msg: Message) (state: State): State =
         match msg with
         | NewGame -> newGame state
-        | HighlightChanged ->
+        | HighlightChanged _ ->
             { state with
                   HighlightEnabled = not state.HighlightEnabled }
         | RankChanged d -> { state with Rank = d }

@@ -17,62 +17,55 @@ module View =
     let private intToString = sprintf "%X"
 
     let private fieldView (state: State) (dispatch: Message -> unit) =
-        let selectedCell = state.SelectedCell
+        let createButton state ({ Digit = digit; IsHidden = isHidden } as cell) =
+            let bg =
+                (if state.IsSolved then
+                    Brushes.LightGreen
+                 elif state.SelectedCell.IsSome
+                      && cell.Coords = state.SelectedCell.Value.Coords then
+                     Brushes.LightCyan
+                 elif state.HighlightEnabled
+                      && state.SelectedCell.IsSome
+                      && not state.SelectedCell.Value.IsHidden
+                      && digit = state.SelectedCell.Value.Digit
+                      && not isHidden then
+                     Brushes.LightYellow
+                 else
+                     Brushes.LightGray)
+
+            generalize
+                (Button.create
+                    [ Button.minWidth 30.
+                      Button.minHeight 30.
+                      Button.borderThickness 1.
+                      Button.borderBrush Brushes.Black
+                      Button.foreground (if cell.IsUnchangable then Brushes.Black else Brushes.DarkSlateGray)
+                      Button.fontSize 20.
+                      Button.padding 0.
+                      Button.fontWeight (if cell.IsUnchangable then FontWeight.Bold else FontWeight.DemiBold)
+
+                      Button.background bg
+                      Button.content (if isHidden then "" else intToString digit)
+                      Button.onClick ((fun _ -> dispatch <| CellSelected cell), Always) ])
+
+        let groups =
+            (state.PlayerField
+             |> getGroups
+             |> Seq.map (fun group ->
+                 generalize
+                     (Border.create
+                         [ Border.borderThickness 1.
+                           Border.borderBrush Brushes.Orange
+
+                           Border.child
+                               (UniformGrid.create
+                                   [ UniformGrid.columns (rank state.OriginalField)
+                                     UniformGrid.children (group |> Seq.map (createButton state) |> List.ofSeq) ]) ]))
+             |> List.ofSeq)
+
         UniformGrid.create
             [ UniformGrid.columns (rank state.OriginalField)
-              UniformGrid.children
-                  (state.PlayerField
-                   |> getGroups
-                   |> Seq.map (fun group ->
-                       Border.create
-                           [ Border.borderThickness 1.
-                             Border.borderBrush Brushes.Orange
-
-                             Border.child
-                                 (UniformGrid.create
-                                     [ UniformGrid.columns (rank state.OriginalField)
-                                       UniformGrid.children
-                                           (group
-                                            |> Seq.map (fun cell ->
-                                                let { X = x; Y = y; Digit = digit; IsHidden = isHidden } = cell
-                                                Button.create
-                                                    [ Button.minWidth 30.
-                                                      Button.minHeight 30.
-                                                      Button.borderThickness 1.
-                                                      Button.borderBrush Brushes.Black
-                                                      Button.foreground
-                                                        (if cell.IsUnchangable then Brushes.Black
-                                                         else Brushes.DarkSlateGray)
-                                                      Button.fontSize 20.
-                                                      Button.padding 0.
-                                                      Button.fontWeight
-                                                          (if cell.IsUnchangable then
-                                                               FontWeight.Bold
-                                                           else
-                                                               FontWeight.DemiBold)
-
-                                                      Button.background
-                                                          (if state.IsSolved then
-                                                              Brushes.LightGreen
-                                                           elif state.SelectedCell.IsSome &&
-                                                               (x, y) = state.SelectedCell.Value.Coords then
-                                                               Brushes.LightCyan
-                                                           elif state.HighlightEnabled
-                                                                && selectedCell.IsSome
-                                                                && not selectedCell.Value.IsHidden
-                                                                && digit = selectedCell.Value.Digit
-                                                                && not isHidden then
-                                                               Brushes.LightYellow
-                                                           else
-                                                               Brushes.LightGray)
-                                                      Button.content (if isHidden then "" else intToString digit)
-                                                      Button.onClick (fun _ ->
-                                                        printfn "%A" cell
-                                                        dispatch <| CellSelected cell) ]
-                                                |> generalize)
-                                            |> List.ofSeq) ]) ]
-                       |> generalize)
-                   |> List.ofSeq) ]
+              UniformGrid.children groups ]
 
     let private digitsPanelView (state: State) (dispatch: Message -> unit) =
         let fieldSize = size state.OriginalField
